@@ -1,0 +1,205 @@
+** - MongoDB Database Design & Queries**
+
+---
+
+## **Database Schema (Collections Design)**
+
+### **1. Users Collection**
+Stores details of users.
+```json
+{
+    "_id": ObjectId(),
+    "name": "John Doe",
+    "email": "johndoe@example.com",
+    "batch": "B47"
+}
+```
+
+### **2. Codekata Collection**
+Stores the number of problems solved by each user.
+```json
+{
+    "_id": ObjectId(),
+    "user_id": ObjectId("UserIDHere"),
+    "problems_solved": 120
+}
+```
+
+### **3. Attendance Collection**
+Stores attendance records for users.
+```json
+{
+    "_id": ObjectId(),
+    "user_id": ObjectId("UserIDHere"),
+    "date": ISODate("2020-10-16"),
+    "status": "Absent"
+}
+```
+
+### **4. Topics Collection**
+Stores topics covered in each session.
+```json
+{
+    "_id": ObjectId(),
+    "topic_name": "MongoDB Basics",
+    "date": ISODate("2020-10-10")
+}
+```
+
+### **5. Tasks Collection**
+Stores tasks assigned to users.
+```json
+{
+    "_id": ObjectId(),
+    "user_id": ObjectId("UserIDHere"),
+    "topic_id": ObjectId("TopicIDHere"),
+    "submission_status": "Not Submitted"
+}
+```
+
+### **6. Company Drives Collection**
+Stores information about company placement drives.
+```json
+{
+    "_id": ObjectId(),
+    "company_name": "Google",
+    "drive_date": ISODate("2020-10-20")
+}
+```
+
+### **7. Drive Participation Collection**
+Tracks users who appeared for company drives.
+```json
+{
+    "_id": ObjectId(),
+    "user_id": ObjectId("UserIDHere"),
+    "drive_id": ObjectId("DriveIDHere")
+}
+```
+
+### **8. Mentors Collection**
+Stores mentor information.
+```json
+{
+    "_id": ObjectId(),
+    "mentor_name": "Alex",
+    "mentee_count": 20
+}
+```
+
+---
+
+## **MongoDB Queries**
+
+### **1. Find all topics and tasks taught in October**  
+```js
+db.topics.aggregate([
+    {
+        $match: { date: { $gte: ISODate("2020-10-01"), $lt: ISODate("2020-11-01") } }
+    },
+    {
+        $lookup: {
+            from: "tasks",
+            localField: "_id",
+            foreignField: "topic_id",
+            as: "tasks"
+        }
+    }
+])
+```
+
+### **2. Find all company drives between 15-Oct-2020 and 31-Oct-2020**  
+```js
+db.company_drives.find({
+    drive_date: { $gte: ISODate("2020-10-15"), $lte: ISODate("2020-10-31") }
+})
+```
+
+### **3. Find all company drives and students who appeared for the placement**  
+```js
+db.drive_participation.aggregate([
+    {
+        $lookup: {
+            from: "users",
+            localField: "user_id",
+            foreignField: "_id",
+            as: "user"
+        }
+    },
+    {
+        $lookup: {
+            from: "company_drives",
+            localField: "drive_id",
+            foreignField: "_id",
+            as: "company_drive"
+        }
+    },
+    {
+        $project: {
+            "user.name": 1,
+            "company_drive.company_name": 1
+        }
+    }
+])
+```
+
+### **4. Find the number of problems solved by each user in Codekata**  
+```js
+db.codekata.aggregate([
+    {
+        $lookup: {
+            from: "users",
+            localField: "user_id",
+            foreignField: "_id",
+            as: "user"
+        }
+    },
+    {
+        $project: {
+            "user.name": 1,
+            "problems_solved": 1
+        }
+    }
+])
+```
+
+### **5. Find all mentors with more than 15 mentees**  
+```js
+db.mentors.find({ mentee_count: { $gt: 15 } })
+```
+
+### **6. Find the number of users who were absent and didn’t submit tasks between 15-Oct-2020 and 31-Oct-2020**  
+```js
+db.attendance.aggregate([
+    {
+        $match: {
+            date: { $gte: ISODate("2020-10-15"), $lte: ISODate("2020-10-31") },
+            status: "Absent"
+        }
+    },
+    {
+        $lookup: {
+            from: "tasks",
+            localField: "user_id",
+            foreignField: "user_id",
+            as: "tasks"
+        }
+    },
+    {
+        $match: {
+            "tasks.submission_status": "Not Submitted"
+        }
+    },
+    {
+        $group: {
+            _id: null,
+            absent_users: { $sum: 1 }
+        }
+    }
+])
+```
+
+---
+
+
+
